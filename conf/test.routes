@@ -1,0 +1,1 @@
+POST        /insertSubscriptionData         @uk.gov.hmrc.cbcr.controllers.test.SubscriptionDataTestController.insertData
