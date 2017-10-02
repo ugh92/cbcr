@@ -19,8 +19,7 @@ package uk.gov.hmrc.cbcr.controllers.test
 import javax.inject.{Inject, Singleton}
 
 import play.api.Logger
-import play.api.libs.json.JsValue
-
+import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.commands.WriteResult
@@ -32,14 +31,10 @@ import uk.gov.hmrc.play.microservice.controller.BaseController
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class SubscriptionDataTestController @Inject()(private val mongo: ReactiveMongoApi)(implicit ec:ExecutionContext) extends BaseController with ServicesConfig {
+class TestSubscriptionDataController @Inject()(private val mongo: ReactiveMongoApi)(implicit ec: ExecutionContext) extends BaseController with ServicesConfig {
 
   val repository: Future[JSONCollection] =
     mongo.database.map(_.collection[JSONCollection]("Subscription_Data"))
-
-  def save(s: SubscriptionDetails): Future[WriteResult] =
-    repository.flatMap(_.insert(s))
-
 
   def insertData() = Action.async[JsValue](parse.json) {
     implicit request =>
@@ -51,11 +46,23 @@ class SubscriptionDataTestController @Inject()(private val mongo: ReactiveMongoA
               Logger.warn(request.body.toString)
               NotFound("error submitting data")
           }
-
         }
+      }
+  }
+
+  def save(s: SubscriptionDetails): Future[WriteResult] =
+    repository.flatMap(_.insert(s))
 
 
+
+  def deleteSubscription(utr: String) = Action.async(parse.json) {
+    implicit request =>
+      {
+        repository.
       }
 
+
+
   }
+
 }

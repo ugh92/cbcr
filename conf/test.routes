@@ -1,1 +1,2 @@
-POST        /insertSubscriptionData         @uk.gov.hmrc.cbcr.controllers.test.SubscriptionDataTestController.insertData
+POST        /insertSubscriptionData         @uk.gov.hmrc.cbcr.controllers.test.TestSubscriptionDataController.insertData
+DELETE      /deleteSubscription/:utr             @uk.gov.hmrc.cbcr.controllers.test.TestSubscriptionDataController.deleteSubscription(utr: String)
