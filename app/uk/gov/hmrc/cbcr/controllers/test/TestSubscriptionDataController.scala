@@ -23,8 +23,9 @@ import play.api.libs.json.{JsValue, Json}
 import play.api.mvc._
 import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.commands.WriteResult
+import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import uk.gov.hmrc.cbcr.models.SubscriptionDetails
+import uk.gov.hmrc.cbcr.models.{DocRefId, SubscriptionDetails, Utr}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
@@ -35,6 +36,9 @@ class TestSubscriptionDataController @Inject()(private val mongo: ReactiveMongoA
 
   val repository: Future[JSONCollection] =
     mongo.database.map(_.collection[JSONCollection]("Subscription_Data"))
+
+  val docRefIdRepository: Future[JSONCollection] =
+    mongo.database.map(_.collection[JSONCollection]("DocRefId"))
 
   def insertData() = Action.async[JsValue](parse.json) {
     implicit request =>
@@ -54,15 +58,44 @@ class TestSubscriptionDataController @Inject()(private val mongo: ReactiveMongoA
     repository.flatMap(_.insert(s))
 
 
+  def clearSubscription(utr:Utr): Future[WriteResult] = {
+    val criteria = Json.obj("utr" -> utr.utr)
+    for {
+      repo   <- repository
+      _      <- repo.find(criteria).one[SubscriptionDetails]
+      result <- repo.remove(criteria, firstMatchOnly = true)
+    } yield result
+  }
 
-  def deleteSubscription(utr: String) = Action.async(parse.json) {
+  def deleteSubscription(utrs: String): Action[AnyContent] = Action.async{
     implicit request =>
       {
-        repository.
+        val utr = Utr(utrs)
+        clearSubscription(utr).map{w =>
+          Logger.error(s"Response : $w")
+          if(w.n > 0) Ok  else NotFound
+        }
       }
+  }
 
+  def clearSingleDocRefId(docRefId: DocRefId): Future[WriteResult] = {
+    val criteria = Json.obj("id" -> docRefId.id)
+    for {
+      repo <- docRefIdRepository
+      _    <- repo.find(criteria).one[DocRefId]
+      result <- repo.remove(criteria, firstMatchOnly = true)
+    } yield result
+  }
 
-
+  def deleteSingleDocRefId(docRefIds: String): Action[AnyContent] = Action. async{
+    implicit request =>
+      {
+        val docRefId = DocRefId(docRefIds)
+        clearSingleDocRefId(docRefId).map{w =>
+          Logger.error(s"Response : $w")
+          if(w.n > 0) Ok else NotFound
+        }
+      }
   }
 
 }
