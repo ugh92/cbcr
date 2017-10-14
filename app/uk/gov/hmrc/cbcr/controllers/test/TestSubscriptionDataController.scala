@@ -25,25 +25,26 @@ import play.modules.reactivemongo.ReactiveMongoApi
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.play.json._
 import reactivemongo.play.json.collection.JSONCollection
-import uk.gov.hmrc.cbcr.models.{DocRefId, SubscriptionDetails, Utr}
+import uk.gov.hmrc.cbcr.models.{DocRefId, DocRefIdRecord, SubscriptionDetails, Utr}
+import uk.gov.hmrc.cbcr.repositories.{DocRefIdRepository, SubscriptionDataRepository}
 import uk.gov.hmrc.play.config.ServicesConfig
 import uk.gov.hmrc.play.microservice.controller.BaseController
 
 import scala.concurrent.{ExecutionContext, Future}
 
 @Singleton
-class TestSubscriptionDataController @Inject()(private val mongo: ReactiveMongoApi)(implicit ec: ExecutionContext) extends BaseController with ServicesConfig {
+class TestSubscriptionDataController @Inject()(subRepo: SubscriptionDataRepository, docRefRepo: DocRefIdRepository , private val mongo: ReactiveMongoApi)(implicit ec: ExecutionContext) extends BaseController with ServicesConfig {
 
-  val repository: Future[JSONCollection] =
-    mongo.database.map(_.collection[JSONCollection]("Subscription_Data"))
+//  val repository: Future[JSONCollection] =
+//    mongo.database.map(_.collection[JSONCollection]("Subscription_Data"))
 
-  val docRefIdRepository: Future[JSONCollection] =
-    mongo.database.map(_.collection[JSONCollection]("DocRefId"))
+//  val docRefIdRepository: Future[JSONCollection] =
+//    mongo.database.map(_.collection[JSONCollection]("DocRefId"))
 
   def insertData() = Action.async[JsValue](parse.json) {
     implicit request =>
       withJsonBody[SubscriptionDetails] {
-        save(_) map {
+        subRepo.save(_) map {
           _.ok match {
             case true => Ok("data submitted successfully")
             case false =>
@@ -54,44 +55,55 @@ class TestSubscriptionDataController @Inject()(private val mongo: ReactiveMongoA
       }
   }
 
-  def save(s: SubscriptionDetails): Future[WriteResult] =
-    repository.flatMap(_.insert(s))
-
-
-  def clearSubscription(utr:Utr): Future[WriteResult] = {
-    val criteria = Json.obj("utr" -> utr.utr)
-    for {
-      repo   <- repository
-      _      <- repo.find(criteria).one[SubscriptionDetails]
-      result <- repo.remove(criteria, firstMatchOnly = true)
-    } yield result
-  }
-
   def deleteSubscription(utrs: String): Action[AnyContent] = Action.async{
     implicit request =>
-      {
-        val utr = Utr(utrs)
-        clearSubscription(utr).map{w =>
-          Logger.error(s"Response : $w")
-          if(w.n > 0) Ok  else NotFound
-        }
+    {
+      val utr = Utr(utrs)
+      subRepo.clear(utr).map{w =>
+        Logger.error(s"Response : $w")
+        if(w.n > 0) Ok  else NotFound
       }
+    }
   }
 
-  def clearSingleDocRefId(docRefId: DocRefId): Future[WriteResult] = {
-    val criteria = Json.obj("id" -> docRefId.id)
-    for {
-      repo <- docRefIdRepository
-      _    <- repo.find(criteria).one[DocRefId]
-      result <- repo.remove(criteria, firstMatchOnly = true)
-    } yield result
-  }
+//  def save(s: SubscriptionDetails): Future[WriteResult] =
+//    repository.flatMap(_.insert(s))
+
+
+//  def clearSubscription(utr:Utr): Future[WriteResult] = {
+//    val criteria = Json.obj("utr" -> utr.utr)
+//    for {
+//      repo   <- repository
+//      _      <- repo.find(criteria).one[SubscriptionDetails]
+//      result <- repo.remove(criteria, firstMatchOnly = true)
+//    } yield result
+//  }
+//
+//  def deleteSubscription(utrs: String): Action[AnyContent] = Action.async{
+//    implicit request =>
+//      {
+//        val utr = Utr(utrs)
+//        clearSubscription(utr).map{w =>
+//          Logger.error(s"Response : $w")
+//          if(w.n > 0) Ok  else NotFound
+//        }
+//      }
+//  }
+
+//  def clearSingleDocRefId(docRefId: DocRefId): Future[WriteResult] = {
+//    val criteria = Json.obj("id" -> docRefId.id)
+//    for {
+//      repo <- docRefIdRepository
+//      _    <- repo.find(criteria).one[DocRefIdRecord]
+//      result <- repo.remove(criteria, firstMatchOnly = true)
+//    } yield result
+//  }
 
   def deleteSingleDocRefId(docRefIds: String): Action[AnyContent] = Action. async{
     implicit request =>
       {
         val docRefId = DocRefId(docRefIds)
-        clearSingleDocRefId(docRefId).map{w =>
+        docRefRepo.delete(docRefId).map{w =>
           Logger.error(s"Response : $w")
           if(w.n > 0) Ok else NotFound
         }
